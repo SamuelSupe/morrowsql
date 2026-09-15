@@ -19,7 +19,7 @@ for component in morrowsql morrowsql-router morrowsql-operator; do
     find /opt -type f \( -name "*.so*" -o -perm /111 \) -print0 |
       while IFS= read -r -d "" path; do ldd "$path" 2>/dev/null || true; done
   ' > "artifacts/audit/${component}-libraries.txt"
-  if rg -q 'not found' "artifacts/audit/${component}-libraries.txt"; then
+  if grep -q 'not found' "artifacts/audit/${component}-libraries.txt"; then
     echo "Unresolved shared libraries in $component" >&2
     failed=1
   fi

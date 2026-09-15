@@ -12,9 +12,11 @@ while IFS= read -r -d '' value; do options+=("$value"); done < <(
 )
 [[ ${options[0]:-} != '' ]] || options=()
 for ((attempt=0; attempt<60; attempt++)); do
-  if printf '%s\n' "$MYSQL_PASSWORD" | mysqlrouter \
+  # Bootstrap authenticates once as the administrator and once as the existing
+  # runtime account, even when both account names are the same.
+  if printf '%s\n%s\n' "$MYSQL_PASSWORD" "$MYSQL_PASSWORD" | mysqlrouter \
     --bootstrap "$MYSQL_USER@$MYSQL_HOST:${MYSQL_PORT:-3306}" \
-    --directory=/tmp/mysqlrouter --force \
+    --directory=/tmp/mysqlrouter --force --strict \
     --account="$MYSQL_USER" --account-create=never "${options[@]}"; then
     unset MYSQL_PASSWORD
     exec mysqlrouter --config=/tmp/mysqlrouter/mysqlrouter.conf "$@"

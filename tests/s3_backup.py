@@ -9,7 +9,10 @@ MC = "quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z@sha256:a7fe349ef4bd8521fb849
 
 def verify_backups(acceptance):
     c = acceptance.cluster
+    minio_image = c.load_fixture(MINIO)
+    mc_image = c.load_fixture(MC)
     access, secret = secrets.token_hex(12), secrets.token_hex(24)
+    c.secrets.append(secret)
     c.apply({"apiVersion": "v1", "kind": "Secret", "metadata": {"name": "minio-credentials"},
              "stringData": {"access": access, "secret": secret,
                             "mc-host": f"http://{access}:{secret}@minio:9000"}})
@@ -19,7 +22,7 @@ def verify_backups(acceptance):
     c.apply({"apiVersion": "v1", "kind": "Pod", "metadata": {"name": "minio", "labels": {"app": "minio"}},
              "spec": {"nodeSelector": {"node-role.kubernetes.io/control-plane": ""},
                       "tolerations": [{"key": "node-role.kubernetes.io/control-plane", "effect": "NoSchedule"}],
-                      "containers": [{"name": "minio", "image": MINIO, "args": ["server", "/data"],
+                      "containers": [{"name": "minio", "image": minio_image, "args": ["server", "/data"],
                                       "env": [{"name": name, "valueFrom": {"secretKeyRef": {
                                           "name": "minio-credentials", "key": key}}}
                                               for name, key in (("MINIO_ROOT_USER", "access"), ("MINIO_ROOT_PASSWORD", "secret"))],
@@ -31,7 +34,7 @@ def verify_backups(acceptance):
     c.kubectl("wait", "pod/minio", "--for=condition=Ready", "--timeout=240s")
     c.apply({"apiVersion": "batch/v1", "kind": "Job", "metadata": {"name": "create-backup-bucket"},
              "spec": {"backoffLimit": 2, "template": {"spec": {"restartPolicy": "Never",
-                 "containers": [{"name": "mc", "image": MC, "args": ["mb", "--ignore-existing", "ci/morrowsql"],
+                 "containers": [{"name": "mc", "image": mc_image, "args": ["mb", "--ignore-existing", "ci/morrowsql"],
                                  "env": [{"name": "MC_HOST_ci", "valueFrom": {"secretKeyRef": {
                                      "name": "minio-credentials", "key": "mc-host"}}}]}]}}}})
     c.kubectl("wait", "job/create-backup-bucket", "--for=condition=Complete", "--timeout=180s")

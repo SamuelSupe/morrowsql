@@ -25,6 +25,7 @@ def client_file(path, user, password):
 
 
 def main():
+    image_id = docker("image", "inspect", IMAGE, "--format", "{{.Id}}").stdout.strip()
     suffix = uuid.uuid4().hex[:10]
     names = [f"morrowsql-{suffix}-{role}" for role in ("source", "restore", "reject")]
     volumes = [name + "-data" for name in names]
@@ -76,7 +77,7 @@ def main():
                    "-v", f"{ROOT / 'build/test-client'}:/test-client:ro",
                    "-e", "MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password",
                    "-e", "MYSQL_PASSWORD_FILE=/run/secrets/app-password",
-                   "-e", "MYSQL_DATABASE=app_db", "-e", "MYSQL_USER=app", *mounts, IMAGE)
+                   "-e", "MYSQL_DATABASE=app_db", "-e", "MYSQL_USER=app", *mounts, image_id)
             created_containers.append(name)
             ready(name)
 
@@ -97,6 +98,9 @@ def main():
             docker("exec", source, "/test-client")
             denied = sql(source, "SELECT 1;", user="wrong", tcp=True, check=False)
             assert denied.returncode != 0
+            cleartext = docker("exec", source, "mysql", "--defaults-extra-file=/run/secrets/app.cnf",
+                               "--host=127.0.0.1", "--protocol=tcp", "--ssl-mode=DISABLED", "-e", "SELECT 1", check=False)
+            assert cleartext.returncode != 0
             sql(source, "CREATE DATABASE appXdb;")
             denied = sql(source, "SHOW TABLES FROM appXdb;", user="app", tcp=True, check=False)
             assert denied.returncode != 0
@@ -121,7 +125,7 @@ def main():
 
             outcome = docker("run", "--name", rejected, "-v", f"{private}:/run/secrets:ro",
                              "-e", "MYSQL_ROOT_PASSWORD=conflicting-input",
-                             "-e", "MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password", IMAGE, check=False)
+                             "-e", "MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password", image_id, check=False)
             created_containers.append(rejected)
             assert outcome.returncode != 0
             assert "set either MYSQL_ROOT_PASSWORD" in outcome.stderr
@@ -132,10 +136,10 @@ def main():
             docker("volume", "create", volumes[2])
             created_volumes.append(volumes[2])
             docker("run", "--rm", "-v", f"{volumes[2]}:/var/lib/mysql",
-                   "--entrypoint", "sh", IMAGE, "-c", "touch /var/lib/mysql/incomplete")
+                   "--entrypoint", "sh", image_id, "-c", "touch /var/lib/mysql/incomplete")
             outcome = docker("run", "--name", rejected, "-v", f"{volumes[2]}:/var/lib/mysql",
                              "-v", f"{private}:/run/secrets:ro",
-                             "-e", "MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password", IMAGE, check=False)
+                             "-e", "MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password", image_id, check=False)
             created_containers.append(rejected)
             assert outcome.returncode != 0
             assert "data directory is not empty" in outcome.stderr
@@ -155,7 +159,7 @@ def main():
                 docker("volume", "rm", volume, check=False)
             if leaked:
                 raise RuntimeError("credentials appeared in container logs")
-    (evidence / "results.json").write_text(json.dumps({"image": IMAGE,
+    (evidence / "results.json").write_text(json.dumps({"image": IMAGE, "imageId": image_id,
         "binaryArchive": bool(os.environ.get("MORROWSQL_BINARY_DIRECTORY")), "passed": results}, indent=2) + "\n")
     print(json.dumps({"status": "passed", "scenarios": results, "evidence": str(evidence)}))
 

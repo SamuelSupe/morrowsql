@@ -49,13 +49,37 @@ jobs:
           tar -xzf morrowsql-8.4.11-1-source.tar.gz -C ../.work
           mkdir -p ../.work/morrowsql-8.4.11-1-source/artifacts
           df -h .
-      - name: Build native Server, Router, Shell and Operator from corresponding sources
+      - name: Restore native compiler outputs for unchanged source inputs
+        id: compiler-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          key: native-${{ matrix.arch }}-${{ hashFiles('release.json', 'docker/builder.Dockerfile', 'scripts/build-server.sh', 'scripts/build-shell.sh') }}
+          path: |
+            .work/morrowsql-8.4.11-1-source/build/server
+            .work/morrowsql-8.4.11-1-source/build/shell
+            .work/morrowsql-8.4.11-1-source/build/antlr
+            .work/morrowsql-8.4.11-1-source/.cache/src/antlr/runtime/Cpp/dist
+      - name: Build native Server, Router and Shell from corresponding sources
         env:
           BUILD_JOBS: "3"
           BUILD_CPUS: "4"
           BUILD_MEMORY: 12g
           BUILD_RUN_ID: ${{ github.run_id }}
-        run: bash scripts/build.sh all 2>&1 | tee artifacts/build.log
+        run: |
+          bash scripts/build.sh server 2>&1 | tee artifacts/server-build.log
+          bash scripts/build.sh shell 2>&1 | tee artifacts/shell-build.log
+      - name: Save completed native compilation before runtime verification
+        if: steps.compiler-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          key: ${{ steps.compiler-cache.outputs.cache-primary-key }}
+          path: |
+            .work/morrowsql-8.4.11-1-source/build/server
+            .work/morrowsql-8.4.11-1-source/build/shell
+            .work/morrowsql-8.4.11-1-source/build/antlr
+            .work/morrowsql-8.4.11-1-source/.cache/src/antlr/runtime/Cpp/dist
+      - name: Assemble Server, Router and Operator images
+        run: bash scripts/build.sh images 2>&1 | tee artifacts/images-build.log
       - name: Validate chart rendering and shell syntax
         run: |
           python3 scripts/install-test-tools.py

@@ -38,3 +38,6 @@ kubernetes==35.0.0
   urllib3==2.6.3
   durationpy==0.10
 packaging==26.0
+cryptography==50.0.1
+cffi==2.1.1
+pycparser==3.0

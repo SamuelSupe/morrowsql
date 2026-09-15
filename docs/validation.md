@@ -21,6 +21,12 @@ multi-node CI simulations. The 120-second write-recovery target applies only to
 the specified single-member-failure fixture, not to production workloads.
 
 No migration, version upgrade or fixed-duration two-hour soak is required.
+The explicit MTR scope exclusions are listed in [mtr-excluded.txt](../tests/mtr-excluded.txt).
+MTR also reports upstream-disabled cases and cases requiring debug binaries or
+the optional big-test mode. Published reports retain those skip reasons.
+The test configuration uses the distribution's `innodb_numa_interleave=OFF`
+default, including servers restarted by clone recovery; unprivileged containers
+do not require a NUMA memory-policy capability.
 Unexplained failures, lost acknowledged transactions, two writable primaries,
 unintended PVC deletion or an unresolved confirmed high-severity vulnerability
 prevent stable publication.

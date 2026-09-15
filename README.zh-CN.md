@@ -35,7 +35,8 @@ make check
 ## 部署与恢复
 
 - 独立容器启动示例见 [English README](README.md#run-a-fresh-standalone-instance)。
-- Kubernetes 部署说明见 [部署文档](docs/kubernetes.md)。
+- Ubuntu 二进制包安装见 [安装文档](docs/binary.zh-CN.md)。
+- Kubernetes 部署说明见 [部署文档](docs/kubernetes.zh-CN.md)。
 - 默认管理员只允许本机连接；应用账号通过初始化变量单独创建。
 - 初始化阶段禁止网络连接，成功结束后才记录初始化完成。非空且初始化不完整的目录
   会报错，不自动清除或重建。

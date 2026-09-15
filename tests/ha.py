@@ -12,6 +12,7 @@ class Acceptance:
     def __init__(self, cluster):
         self.cluster = cluster
         self.password = secrets.token_urlsafe(40)
+        cluster.secrets.append(self.password)
         self.results = []
 
     def record(self, scenario, **values):
@@ -57,7 +58,8 @@ class Acceptance:
         for pod in c.get("pods")["items"]:
             if pod["metadata"].get("labels", {}).get("component") == "mysqlrouter":
                 assert self.query("SELECT @@super_read_only", host=pod["status"]["podIP"]) == [[0]]
-        self.record("both Routers accept TLS connections to the primary")
+                assert self.query("SELECT @@super_read_only", host=pod["status"]["podIP"], port=6447) == [[1]]
+        self.record("both Routers provide TLS write and read-only connections")
         c.kubectl("exec", "acceptance-client", "--", "bash", "-c",
                   "mysqlsh --py --file /script/writer.py </dev/null >/work/writer.log 2>&1 &")
         wait("first confirmed transactions", lambda: len(self.acknowledged()) >= 5, 60)
@@ -95,7 +97,7 @@ class Acceptance:
         c.online()
         primary = c.primary()["metadata"]["name"]
         started = time.time()
-        c.kubectl("delete", "pod", primary, "--wait=false")
+        c.kubectl("delete", "pod", primary, "--grace-period=1", "--wait=true", "--timeout=60s")
         self.recovered("primary Pod deletion and persistent restart", started)
         c.online()
         node = c.primary()["spec"]["nodeName"]

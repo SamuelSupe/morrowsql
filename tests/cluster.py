@@ -33,10 +33,19 @@ class Cluster:
         self.evidence.mkdir(parents=True)
         self.environment = dict(os.environ, KUBECONFIG=str(self.evidence / "kubeconfig"))
         self.created = False
+        self.secrets = []
+
+    def redact(self, text):
+        for value in self.secrets:
+            text = text.replace(value, "[REDACTED]")
+        return text
 
     def run(self, *args, input=None, check=True, timeout=600):
-        return subprocess.run(args, input=input, text=True, capture_output=True,
-                              env=self.environment, check=check, timeout=timeout)
+        result = subprocess.run(args, input=input, text=True, capture_output=True,
+                                env=self.environment, timeout=timeout)
+        if check and result.returncode:
+            raise RuntimeError(self.redact(f"Command failed: {' '.join(args)}\n{result.stderr[-8000:]}"))
+        return result
 
     def kubectl(self, *args, **kwargs):
         return self.run("kubectl", "--request-timeout=30s", *args, **kwargs)
@@ -60,19 +69,29 @@ class Cluster:
         self.created = True
         result = self.run("kind", "create", "cluster", "--name", self.name,
                          "--image", NODE_IMAGE, "--config", str(configuration),
-                         "--kubeconfig", self.environment["KUBECONFIG"], "--wait", "180s")
+                         "--kubeconfig", self.environment["KUBECONFIG"], "--wait", "180s", timeout=1800)
         (self.evidence / "kind-create.log").write_text(result.stdout + result.stderr)
         nodes = self.get("nodes")["items"]
         assert len(nodes) == 4
         assert all(n["status"]["nodeInfo"]["kubeletVersion"].startswith("v1.35.") for n in nodes)
         for local, target in IMAGES.items():
             self.run("docker", "tag", local, target)
+        images = json.loads(self.run("docker", "image", "inspect", *IMAGES.values()).stdout)
+        (self.evidence / "images.json").write_text(json.dumps([
+            {"id": item["Id"], "architecture": item["Architecture"], "tags": item["RepoTags"]} for item in images], indent=2))
         self.run("kind", "load", "docker-image", "--name", self.name, *IMAGES.values())
 
     def install_operator(self):
         result = self.run("helm", "install", "morrowsql-operator", str(ROOT / "charts/morrowsql-operator"),
                          "--namespace", "morrowsql-system", "--create-namespace", "--wait", "--timeout", "5m")
         (self.evidence / "operator-install.log").write_text(result.stdout + result.stderr)
+
+    def load_fixture(self, reference):
+        tag = reference.split("@")[0]
+        self.run("docker", "pull", reference)
+        self.run("docker", "tag", reference, tag)
+        self.run("kind", "load", "docker-image", "--name", self.name, tag)
+        return tag
 
     def install_database(self, name="morrow", extra=None):
         args = ["helm", "install", name, str(ROOT / "charts/morrowsql"), "-f", str(ROOT / "tests/ci-values.yaml")]
@@ -92,6 +111,8 @@ class Cluster:
             if len(members) != 3:
                 return False
             for member in members:
+                if member["metadata"].get("deletionTimestamp") or member.get("status", {}).get("phase") != "Running":
+                    return False
                 result = self.local_sql(member["metadata"]["name"],
                     "SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE MEMBER_STATE='ONLINE';", check=False)
                 if result.returncode != 0 or result.stdout.strip() != "3":
@@ -122,14 +143,14 @@ class Cluster:
             return
         for resource in ("nodes", "pods", "pvc", "pv", "innodbcluster", "mysqlbackup", "events", "pdb"):
             result = self.kubectl("get", resource, "-A", "-o", "json", check=False)
-            (self.evidence / f"{resource}.json").write_text(result.stdout + result.stderr)
+            (self.evidence / f"{resource}.json").write_text(self.redact(result.stdout + result.stderr))
         for pod in self.get("pods").get("items", []):
             name = pod["metadata"]["name"]
             for container in pod["spec"].get("initContainers", []) + pod["spec"].get("containers", []):
                 result = self.kubectl("logs", name, "-c", container["name"], "--tail=2000", check=False)
-                (self.evidence / f"{name}-{container['name']}.log").write_text(result.stdout + result.stderr)
+                (self.evidence / f"{name}-{container['name']}.log").write_text(self.redact(result.stdout + result.stderr))
         result = self.kubectl("logs", "-n", "morrowsql-system", "deployment/mysql-operator", "--tail=3000", check=False)
-        (self.evidence / "operator.log").write_text(result.stdout + result.stderr)
+        (self.evidence / "operator.log").write_text(self.redact(result.stdout + result.stderr))
 
     def close(self):
         if self.created:

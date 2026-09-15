@@ -1,5 +1,7 @@
 # Kubernetes deployment
 
+[中文](kubernetes.zh-CN.md)
+
 Status: release candidate under validation. These commands target the planned
 stable artifacts and become usable when the release is published.
 
@@ -62,7 +64,8 @@ kubectl -n morrowsql-system logs deployment/mysql-operator
 ```
 
 Applications use the `orders.orders-db.svc.cluster.local` Router service and its
-published read/write or read-only port. Create a separate least-privilege
+published read/write (6446) or read-only (6447) port. TCP connections require TLS.
+Create a separate least-privilege
 application account; do not use the operator administrator for application work.
 
 Failover may disconnect clients. A disconnected commit has an unknown outcome,

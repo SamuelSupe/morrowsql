@@ -26,10 +26,20 @@ spec:
   router:
     version: "8.4.11"
     instances: 2
+    bootstrapOptions:
+      - --client-ssl-mode=REQUIRED
+      - --server-ssl-mode=REQUIRED
+      - --ssl-mode=REQUIRED
     {{- if not .Values.tls.selfSigned }}
     tlsSecretName: {{ required "tls.routerSecret is required for production TLS" .Values.tls.routerSecret | quote }}
     {{- end }}
     podSpec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: router
           resources: {{ toYaml .Values.routerResources | nindent 12 }}
@@ -70,11 +80,13 @@ spec:
                 mysql.oracle.com/cluster: {{ .Release.Name }}
                 component: mysqld
             topologyKey: kubernetes.io/hostname
-  {{- if .Values.mycnf }}
   mycnf: |
     [mysqld]
+    require_secure_transport=ON
+    innodb_numa_interleave=OFF
+    {{- if .Values.mycnf }}
     {{- .Values.mycnf | nindent 4 }}
-  {{- end }}
+    {{- end }}
   {{- if .Values.backup.enabled }}
   backupProfiles:
     - name: s3

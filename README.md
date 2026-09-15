@@ -64,6 +64,8 @@ incomplete nonempty data directory is never silently reinitialized.
 
 ## Kubernetes
 
+Ubuntu archive instructions are in [binary installation](docs/binary.md).
+
 See [Kubernetes deployment](docs/kubernetes.md). Production scheduling requires
 three worker nodes, independent persistent volumes and TLS credentials. A single
 machine running several test nodes is a simulation, not physical fault isolation.

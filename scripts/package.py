@@ -71,6 +71,7 @@ def main():
             raise SystemExit(f"Native architecture mismatch: {description}")
         directory = f"{prefix}-linux-{args.arch}"
         entries = [(stage, directory), (ROOT / "docs/binary.md", f"{directory}/INSTALL.md"),
+                   (ROOT / "docs/binary.zh-CN.md", f"{directory}/INSTALL.zh-CN.md"),
                    (ROOT / "packaging/my.cnf", f"{directory}/my.cnf.example"),
                    (ROOT / "release.json", f"{directory}/release.json"),
                    (ROOT / "licenses", f"{directory}/licenses"),
