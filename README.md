@@ -45,8 +45,8 @@ packages, Python sdists and bundled cryptography dependencies, all hash-pinned.
 After the release is published:
 
 ```sh
+umask 077
 openssl rand -base64 32 > /tmp/morrowsql-root-password
-chmod 600 /tmp/morrowsql-root-password
 docker volume create morrowsql-data
 docker run -d --name morrowsql \
   -v morrowsql-data:/var/lib/mysql \

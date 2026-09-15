@@ -18,8 +18,9 @@ No release is established by this source document alone.
 | Anonymous downloads, pulls, tags and fresh standalone/Kubernetes installation | [Publication workflow](https://github.com/SamuelSupe/morrowsql/actions/workflows/publish.yml) public-install jobs |
 
 Helm lint and rendering are static checks; they are not cluster runtime evidence.
-The local OrbStack cluster has one arm64 node. The release HA gate uses isolated
-multi-node CI simulations. The 120-second write-recovery target applies only to
+Local OrbStack checks run on one arm64 machine; the disposable kind clusters
+contain four node containers. The release HA gate uses isolated multi-node CI
+simulations on each native architecture. The 120-second write-recovery target applies only to
 the specified single-member-failure fixture, not to production workloads.
 
 No migration, version upgrade or fixed-duration two-hour soak is required.

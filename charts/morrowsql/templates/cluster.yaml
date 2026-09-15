@@ -43,6 +43,15 @@ spec:
       containers:
         - name: router
           resources: {{ toYaml .Values.routerResources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - -ec
+                - 'exec 3<>/dev/tcp/127.0.0.1/6446; exec 4<>/dev/tcp/127.0.0.1/6447'
+            periodSeconds: 2
+            timeoutSeconds: 1
+            failureThreshold: 3
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

@@ -2,14 +2,14 @@
 
 [中文](kubernetes.zh-CN.md)
 
-Status: release candidate under validation. These commands target the planned
-stable artifacts and become usable when the release is published.
+These commands become usable when the stable artifacts are published.
+See GitHub Releases for availability and verification evidence.
 
 ## Requirements
 
 - Kubernetes 1.35 with three worker nodes and an appropriate persistent-volume
   provisioner. Each MySQL member gets its own ReadWriteOnce volume.
-- Helm with OCI support and permissions to install the operator CRDs and RBAC.
+- Helm and permissions to install the operator CRDs and RBAC.
 - No other MySQL Operator installation managing these CRDs. The upstream
   operator uses fixed cluster-level role names and watches the cluster.
 - A Secret containing `rootUser`, `rootHost`, `rootPassword`; use `root` and `%`

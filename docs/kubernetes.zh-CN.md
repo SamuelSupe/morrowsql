@@ -2,14 +2,14 @@
 
 [English](kubernetes.md)
 
-**当前处于发行验证阶段，以下公开镜像和 OCI Chart 命令将在正式发布后可用。**
+**以下公开镜像和 Chart 安装命令在正式发布后可用，发行状态见 GitHub Releases。**
 本版只支持全新部署，以及 MorrowSQL 8.4.11-1 内的运行、故障恢复和备份还原。
 
 ## 部署条件
 
 - Kubernetes 1.35，至少三个工作节点，提供持久卷的 StorageClass。
 - 三个数据库成员各使用独立的 ReadWriteOnce PVC，并严格分散到不同节点。
-- Helm 能安装 OCI Chart；安装 Operator 的账号具备注册 CRD 和 RBAC 的权限。
+- 安装 Helm；安装 Operator 的账号具备注册 CRD 和 RBAC 的权限。
 - 同一集群中不运行其他管理这些 MySQL CRD 的 Operator。
 - 预先创建管理员 Secret 和生产 TLS 证书 Secret。
 

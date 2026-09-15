@@ -84,7 +84,7 @@ class Cluster:
         images = json.loads(self.run("docker", "image", "inspect", *IMAGES.values()).stdout)
         (self.evidence / "images.json").write_text(json.dumps([
             {"id": item["Id"], "architecture": item["Architecture"], "tags": item["RepoTags"]} for item in images], indent=2))
-        self.run("kind", "load", "docker-image", "--name", self.name, *IMAGES.values())
+        self.load_native_images(*IMAGES.values())
 
     def install_operator(self):
         result = self.run("helm", "install", "morrowsql-operator", str(self.charts / "morrowsql-operator"),
@@ -95,16 +95,19 @@ class Cluster:
         tag = reference.split("@")[0]
         self.run("docker", "pull", reference)
         self.run("docker", "tag", reference, tag)
-        architecture = self.run("docker", "image", "inspect", tag, "--format", "{{.Architecture}}").stdout.strip()
+        self.load_native_images(tag)
+        return tag
+
+    def load_native_images(self, *references):
+        architecture = self.run("docker", "image", "inspect", references[0], "--format", "{{.Architecture}}").stdout.strip()
         # Docker's containerd store can retain a multi-platform index after a
         # native pull. Export only the available platform, so kind does not
         # attempt to import absent manifests for other architectures.
         with tempfile.TemporaryDirectory(prefix="morrowsql-image-") as directory:
             archive = str(pathlib.Path(directory) / "image.tar")
             self.run("docker", "image", "save", "--platform", "linux/" + architecture,
-                     "--output", archive, tag)
+                     "--output", archive, *references)
             self.run("kind", "load", "image-archive", "--name", self.name, archive)
-        return tag
 
     def install_database(self, name="morrow", extra=None):
         args = ["helm", "install", name, str(self.charts / "morrowsql"), "-f", str(ROOT / "tests/ci-values.yaml")]
@@ -132,6 +135,19 @@ class Cluster:
                     return False
             return True
         wait(f"{name}: three ONLINE members", healthy, 900)
+        def routers_ready():
+            deployment = self.get("deployment", name + "-router")
+            if deployment.get("spec", {}).get("replicas") != 2:
+                return False
+            if deployment.get("status", {}).get("availableReplicas", 0) != 2:
+                return False
+            endpoints = self.get("endpointslices").get("items", [])
+            addresses = {address for item in endpoints
+                if item["metadata"].get("labels", {}).get("kubernetes.io/service-name") == name
+                for endpoint in item.get("endpoints", []) if endpoint.get("conditions", {}).get("ready")
+                for address in endpoint.get("addresses", [])}
+            return len(addresses) == 2
+        wait(f"{name}: two ready Routers and service endpoints", routers_ready, 300)
         self.kubectl("rollout", "status", "deployment/" + name + "-router", "--timeout=300s")
 
     def members(self, name="morrow"):
@@ -154,7 +170,7 @@ class Cluster:
     def collect(self):
         if not self.created:
             return
-        for resource in ("nodes", "pods", "pvc", "pv", "innodbcluster", "mysqlbackup", "events", "pdb"):
+        for resource in ("nodes", "pods", "deployments", "services", "endpointslices", "pvc", "pv", "innodbcluster", "mysqlbackup", "events", "pdb"):
             result = self.kubectl("get", resource, "-A", "-o", "json", check=False)
             (self.evidence / f"{resource}.json").write_text(self.redact(result.stdout + result.stderr))
         for pod in self.get("pods").get("items", []):

@@ -15,11 +15,11 @@ InnoDB Cluster 高可用集群。
 - Linux amd64、arm64 原生构建；压缩包支持 Ubuntu 24.04。
 - Kubernetes 1.35，3 个数据库成员、2 个 Router、单主写入。
 - 全新初始化、持久化重启、故障恢复、自身备份与同版本还原。
+- 不提供其他 MySQL 发行版迁入、版本升级和跨版本恢复；不设固定两小时混合负载门槛。
 
 完整源码包包含上游组件源码、Ubuntu 运行库源码、Python 源码包及 cryptography
 使用的 Rust 和 OpenSSL 源码，均固定版本和 SHA-256。
 扫描范围和已知 Shell 限制见[安全审查](docs/security-review.md)。
-- 不提供其他 MySQL 发行版迁入、版本升级和跨版本恢复；不设固定两小时混合负载门槛。
 
 集群管理复用官方 MySQL Operator 8.4.9-2.1.11，配套 MySQL Shell 8.4.9；通过镜像
 启动契约适配 MorrowSQL，不修改 Operator 的仲裁与控制逻辑。
@@ -39,7 +39,23 @@ make check
 
 ## 部署与恢复
 
-- 独立容器启动示例见 [English README](README.md#run-a-fresh-standalone-instance)。
+正式发布后，可以全新启动独立容器：
+
+```sh
+umask 077
+openssl rand -base64 32 > /tmp/morrowsql-root-password
+docker volume create morrowsql-data
+docker run -d --name morrowsql \
+  -v morrowsql-data:/var/lib/mysql \
+  -v /tmp/morrowsql-root-password:/run/secrets/root-password:ro \
+  -e MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password \
+  ghcr.io/samuelsupe/morrowsql:8.4.11-1
+```
+
+初始化应用账号时，同时提供 `MYSQL_DATABASE`、`MYSQL_USER` 和
+`MYSQL_PASSWORD_FILE`。数据库名允许 1–64 个 ASCII 字母、数字或下划线。
+密码也支持直接使用环境变量，但同一密码的环境变量和 `_FILE` 不能同时设置。
+
 - Ubuntu 二进制包安装见 [安装文档](docs/binary.zh-CN.md)。
 - Kubernetes 部署说明见 [部署文档](docs/kubernetes.zh-CN.md)。
 - 默认管理员只允许本机连接；应用账号通过初始化变量单独创建。

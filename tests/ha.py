@@ -55,10 +55,12 @@ class Acceptance:
                      "volumes": [{"name": "work", "emptyDir": {}},
                                  {"name": "script", "configMap": {"name": "acceptance-writer"}}]}})
         c.kubectl("wait", "pod/acceptance-client", "--for=condition=Ready", "--timeout=180s")
-        for pod in c.get("pods")["items"]:
-            if pod["metadata"].get("labels", {}).get("component") == "mysqlrouter":
-                assert self.query("SELECT @@super_read_only", host=pod["status"]["podIP"]) == [[0]]
-                assert self.query("SELECT @@super_read_only", host=pod["status"]["podIP"], port=6447) == [[1]]
+        routers = [pod for pod in c.get("pods")["items"]
+                   if pod["metadata"].get("labels", {}).get("component") == "mysqlrouter"]
+        assert len(routers) == 2
+        for pod in routers:
+            assert self.query("SELECT @@super_read_only", host=pod["status"]["podIP"]) == [[0]]
+            assert self.query("SELECT @@super_read_only", host=pod["status"]["podIP"], port=6447) == [[1]]
         self.record("both Routers provide TLS write and read-only connections")
         c.kubectl("exec", "acceptance-client", "--", "bash", "-c",
                   "mysqlsh --py --file /script/writer.py </dev/null >/work/writer.log 2>&1 &")
@@ -77,11 +79,12 @@ class Acceptance:
         result = self.cluster.kubectl("exec", "acceptance-client", "--", "cat", "/work/acknowledged.jsonl", check=False)
         return [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
 
-    def recovered(self, scenario, started):
+    def recovered(self, scenario, started, enforce_target=True):
         observed = time.time()
         wait(scenario + ": writing resumes", lambda: sum(r["time"] > observed for r in self.acknowledged()) >= 5, 120)
         elapsed = time.time() - started
-        assert elapsed <= 120, f"{scenario}: {elapsed:.1f}s exceeds the CI target"
+        if enforce_target:
+            assert elapsed <= 120, f"{scenario}: {elapsed:.1f}s exceeds the CI target"
         self.record(scenario, recovery_seconds=round(elapsed, 2))
 
     def simple_faults(self):
@@ -153,18 +156,20 @@ class Acceptance:
             assert len(self.acknowledged()) == before, "Writes continued without a majority"
             self.record("loss of majority stops confirmed writes without forced quorum")
         finally:
+            started = time.time()
             for node in reversed(paused):
                 c.run("docker", "unpause", node)
         c.online()
-        self.recovered("majority recovery", time.time())
+        self.recovered("majority recovery", started, enforce_target=False)
 
     def maintenance(self):
         c = self.cluster
         for namespace, deployment in (("default", "morrow-router"), ("morrowsql-system", "mysql-operator")):
+            started = time.time()
             c.kubectl("rollout", "restart", "deployment/" + deployment, "-n", namespace)
             c.kubectl("rollout", "status", "deployment/" + deployment, "-n", namespace, "--timeout=300s")
             c.online()
-            self.recovered(deployment + " restart", time.time())
+            self.recovered(deployment + " restart", started, enforce_target=False)
         node = c.primary()["spec"]["nodeName"]
         started = time.time()
         try:
