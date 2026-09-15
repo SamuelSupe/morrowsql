@@ -46,7 +46,7 @@ def verify_backups(acceptance):
     def backup(name, bucket):
         c.apply({"apiVersion": "mysql.oracle.com/v2", "kind": "MySQLBackup", "metadata": {"name": name},
                  "spec": {"clusterName": "morrow", "deleteBackupData": False,
-                          "backupProfile": {"dumpInstance": {"dumpOptions": {"threads": 2}, "storage": storage(bucket)}}}})
+                          "backupProfile": {"name": name, "dumpInstance": {"dumpOptions": {"threads": 2}, "storage": storage(bucket)}}}})
 
     backup("expected-failure", "missing-bucket")
     wait("backup failure status is visible",
@@ -73,6 +73,9 @@ def verify_backups(acceptance):
         for item in c.get("mysqlbackup").get("items", [])), 600)
     c.kubectl("patch", "innodbcluster", "morrow", "--type=merge", "-p", json.dumps({"spec": {"backupSchedules": []}}))
     acceptance.record("scheduled logical S3 backup completed")
+    # The restore uses independent PVCs; stopping the source also exercises its
+    # uninstall contract without doubling database memory on a shared test host.
+    acceptance.retain_volumes()
     c.install_database("restored", {"backup": {"bucket": "morrowsql", "existingSecret": "s3-credentials",
                                                "endpoint": "http://minio:9000"},
                                     "restore": {"enabled": True, "prefix": "acceptance/" + status["output"]}})

@@ -1,0 +1,112 @@
+name: Publish verified release
+on:
+  workflow_dispatch:
+    inputs:
+      verification_run:
+        description: Successful native verification run for this exact source revision
+        required: true
+        type: string
+concurrency:
+  group: release-8.4.11-1
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERIFIED_RUN: ${{ inputs.verification_run }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate the exact source revision and all native gates
+        run: |
+          python3 scripts/prepare-release.py "$VERIFIED_RUN" --check-only
+          python3 - <<'PY'
+          import subprocess
+          for endpoint in ('releases/tags/v8.4.11-1', 'git/ref/tags/v8.4.11-1'):
+              r = subprocess.run(['gh', 'api', 'repos/SamuelSupe/morrowsql/' + endpoint], capture_output=True, text=True)
+              if r.returncode == 0 or 'HTTP 404' not in r.stderr:
+                  raise SystemExit('Existing tag/release or unable to establish absence: ' + endpoint)
+          PY
+      - name: Download the verified candidate bytes and prepare release assets
+        run: |
+          gh run download "$VERIFIED_RUN" --repo SamuelSupe/morrowsql --dir input
+          python3 scripts/install-test-tools.py
+          export PATH="$PWD/.cache/bin:$PATH"
+          python3 scripts/prepare-release.py "$VERIFIED_RUN"
+          gh attestation verify input/corresponding-source/morrowsql-8.4.11-1-source.tar.gz --repo SamuelSupe/morrowsql
+          for arch in amd64 arm64; do
+            gh attestation verify "input/candidate-$arch/artifacts/images-$arch.tar.zst" --repo SamuelSupe/morrowsql
+            gh attestation verify "input/candidate-$arch/dist/morrowsql-8.4.11-1-linux-$arch.tar.gz" --repo SamuelSupe/morrowsql
+          done
+      - name: Promote the exact image bytes and immutable multi-platform tags
+        id: images
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "${GITHUB_ACTOR}" --password-stdin
+          python3 scripts/publish-images.py "$VERIFIED_RUN"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-name: ghcr.io/samuelsupe/morrowsql
+          subject-digest: ${{ steps.images.outputs.morrowsql }}
+          push-to-registry: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-name: ghcr.io/samuelsupe/morrowsql/8.4.11-1/community-server
+          subject-digest: ${{ steps.images.outputs.community_server }}
+          push-to-registry: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-name: ghcr.io/samuelsupe/morrowsql/8.4.11-1/community-router
+          subject-digest: ${{ steps.images.outputs.community_router }}
+          push-to-registry: true
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-name: ghcr.io/samuelsupe/morrowsql/8.4.11-1/community-operator
+          subject-digest: ${{ steps.images.outputs.community_operator }}
+          push-to-registry: true
+      - name: Attest the published artifact collection
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-checksums: dist/public/SHA256SUMS
+      - name: Publish GitHub release with checksums and provenance
+        env:
+          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: |
+          cp "$BUNDLE" dist/public/provenance.sigstore.json
+          (cd dist/public && sha256sum provenance.sigstore.json >> SHA256SUMS)
+          gh release create v8.4.11-1 dist/public/* --repo SamuelSupe/morrowsql \
+            --target "$GITHUB_SHA" --title 'MorrowSQL 8.4.11-1' --notes-file dist/public/validation.md
+  public-install:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Anonymous download, checksum, image pull and fresh installation
+        env:
+          RELEASE_ARCH: ${{ matrix.arch }}
+        run: bash scripts/test-public-release.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: public-install-${{ matrix.arch }}
+          path: artifacts/
+          retention-days: 30

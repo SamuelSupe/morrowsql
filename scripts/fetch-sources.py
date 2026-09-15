@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fetch release sources by immutable commit and verify their archive hashes."""
 import hashlib
+import concurrent.futures
 import json
 import os
 import pathlib
@@ -63,6 +64,22 @@ def main():
     python_sources.mkdir(exist_ok=True)
     for source in json.loads((ROOT / "python-sources.json").read_text()):
         fetch(source["url"], python_sources / source["filename"], source["sha256"])
+
+    runtime = json.loads((ROOT / "runtime-sources.json").read_text())
+    bundles = json.loads((ROOT / "bundled-sources.json").read_text())
+    for directory, files in (("runtime-sources", [item for package in runtime for item in package["files"]]),
+                             ("bundled-sources", bundles)):
+        target = ROOT / ".cache" / directory
+        target.mkdir(exist_ok=True)
+        unique = {}
+        for source in files:
+            previous = unique.setdefault(source["filename"], source)
+            assert previous["sha256"] == source["sha256"], "Conflicting source archive hashes"
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [pool.submit(fetch, item["url"], target / item["filename"], item["sha256"])
+                       for item in unique.values()]
+            for future in futures:
+                future.result()
 
 
 if __name__ == "__main__":

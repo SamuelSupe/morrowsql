@@ -3,6 +3,8 @@
 build/
 dist/
 artifacts/
+input/
+public-download/
 *.pyc
 __pycache__/
 .DS_Store

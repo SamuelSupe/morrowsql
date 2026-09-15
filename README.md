@@ -5,9 +5,10 @@
 An independently built distribution of MySQL Community 8.4, with fresh standalone
 deployment and an InnoDB Cluster deployment for Kubernetes.
 
-**Release candidate under construction. No stable binary release has passed the
-release gates yet.** Kubernetes and recovery support must be backed by the published
-validation report before the first stable release.
+Release availability and evidence: [GitHub Releases](https://github.com/SamuelSupe/morrowsql/releases).
+A version is supported only after its native verification gates and public
+installation checks pass. Until the first tagged release is present, this
+repository is a release candidate under development.
 
 ## Distribution
 
@@ -36,6 +37,8 @@ Sources and archive hashes are pinned in [release.json](release.json). Build ima
 use an Ubuntu snapshot dated 2026-09-14. `BUILD_JOBS`, `BUILD_CPUS` and
 `BUILD_MEMORY` control build resource use. `BUILD_CA_FILE` optionally supplies a
 trusted CA bundle using a temporary BuildKit secret; it is not included in images.
+The corresponding source archive also includes the Ubuntu runtime source
+packages, Python sdists and bundled cryptography dependencies, all hash-pinned.
 
 ## Run a fresh standalone instance
 
@@ -91,3 +94,5 @@ their GPLv2 licenses and additional permissions; the MySQL Operator retains UPL
 distribution and is not an Oracle product.
 
 See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+The release's scan coverage and known Shell limitation are recorded in
+[security review](docs/security-review.md).

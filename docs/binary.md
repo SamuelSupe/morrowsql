@@ -70,10 +70,5 @@ consistent snapshot for transactional InnoDB tables only. Recreate application
 accounts separately, check row counts and application-level invariants, then
 connect the application to the restored instance. Keep the backup private.
 
-## 二进制包使用范围
-
-仅支持 Ubuntu 24.04 对应原生架构、空目录初始化与同一发行版重启。
-先校验压缩包，再按上面的步骤以非 root 用户运行。初始化时关闭网络，
-通过本地 socket 设置密码后停止临时实例，再正常启动。
-备份还原目标必须是新建的 MorrowSQL 8.4.11-1 实例；还原后核对应用数据。
-本版不提供官方 MySQL 迁入、版本升级、跨版本恢复或时间点恢复流程。
+Migration, version upgrades, cross-version restores and automatic point-in-time
+recovery are outside this release's supported scope.

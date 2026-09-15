@@ -101,6 +101,20 @@ def main():
                 if hashlib.file_digest(stream, "sha256").hexdigest() != source["sha256"]:
                     raise SystemExit(f"Unverified Python source: {path.name}")
             entries.append((path, f"{prefix}-source/.cache/python-sources/{path.name}"))
+        runtime = json.loads((ROOT / "runtime-sources.json").read_text())
+        bundled = json.loads((ROOT / "bundled-sources.json").read_text())
+        for directory, files in (("runtime-sources", [item for package in runtime for item in package["files"]]),
+                                 ("bundled-sources", bundled)):
+            seen = set()
+            for source in files:
+                if source["filename"] in seen:
+                    continue
+                seen.add(source["filename"])
+                path = ROOT / ".cache" / directory / source["filename"]
+                with path.open("rb") as stream:
+                    if hashlib.file_digest(stream, "sha256").hexdigest() != source["sha256"]:
+                        raise SystemExit(f"Unverified runtime source: {path.name}")
+                entries.append((path, f"{prefix}-source/.cache/{directory}/{path.name}"))
         archive(output / f"{prefix}-source.tar.gz", entries)
 
 

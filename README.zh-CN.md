@@ -5,8 +5,9 @@
 基于 MySQL Community 8.4 的自主发行版本，面向全新部署、独立运行和 Kubernetes
 InnoDB Cluster 高可用集群。
 
-**首版仍在构建和验证中，尚无通过发布门槛的正式二进制版本。** 功能支持声明以最终
-公开的双架构验证报告为准。
+版本和验证报告见 [GitHub Releases](https://github.com/SamuelSupe/morrowsql/releases)。
+只有通过双架构验证及公开渠道全新安装检查的版本才提供支持。首个标签版本发布前，
+本仓库处于候选版本开发阶段。
 
 ## 首版范围
 
@@ -14,6 +15,10 @@ InnoDB Cluster 高可用集群。
 - Linux amd64、arm64 原生构建；压缩包支持 Ubuntu 24.04。
 - Kubernetes 1.35，3 个数据库成员、2 个 Router、单主写入。
 - 全新初始化、持久化重启、故障恢复、自身备份与同版本还原。
+
+完整源码包包含上游组件源码、Ubuntu 运行库源码、Python 源码包及 cryptography
+使用的 Rust 和 OpenSSL 源码，均固定版本和 SHA-256。
+扫描范围和已知 Shell 限制见[安全审查](docs/security-review.md)。
 - 不提供其他 MySQL 发行版迁入、版本升级和跨版本恢复；不设固定两小时混合负载门槛。
 
 集群管理复用官方 MySQL Operator 8.4.9-2.1.11，配套 MySQL Shell 8.4.9；通过镜像

@@ -10,9 +10,9 @@ for component in morrowsql morrowsql-router morrowsql-operator; do
   if [[ -f .cache/build-ca.pem ]]; then
     args+=(-v "$PWD/.cache/build-ca.pem:/etc/ssl/certs/ca-certificates.crt:ro")
   fi
-  docker run "${args[@]}" "$scanner" image --format spdx-json \
+  docker run "${args[@]}" "$scanner" image --no-progress --skip-version-check --format spdx-json \
     --output "/output/${component}.spdx.json" "${component}:8.4.11-1"
-  docker run "${args[@]}" "$scanner" image --scanners vuln --severity HIGH,CRITICAL \
+  docker run "${args[@]}" "$scanner" image --no-progress --skip-version-check --scanners vuln --severity HIGH,CRITICAL \
     --exit-code 1 --format json --output "/output/${component}-vulnerabilities.json" \
     "${component}:8.4.11-1" || failed=1
   docker run --rm --entrypoint bash "${component}:8.4.11-1" -c '
@@ -24,4 +24,7 @@ for component in morrowsql morrowsql-router morrowsql-operator; do
     failed=1
   fi
 done
+python=${PYTHON:-python3.12}
+command -v "$python" >/dev/null || python=python3
+"$python" scripts/enrich-sbom.py
 exit "$failed"

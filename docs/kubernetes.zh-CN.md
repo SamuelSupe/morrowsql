@@ -46,11 +46,11 @@ kubectl -n orders-db create secret tls orders-router-tls \
 
 ```sh
 helm install morrowsql-operator \
-  oci://ghcr.io/samuelsupe/charts/morrowsql-operator \
-  --version 1.0.0 -n morrowsql-system --create-namespace
+  https://github.com/SamuelSupe/morrowsql/releases/download/v8.4.11-1/morrowsql-operator-1.0.0.tgz \
+  -n morrowsql-system --create-namespace
 
-helm install orders oci://ghcr.io/samuelsupe/charts/morrowsql \
-  --version 1.0.0 -n orders-db -f production-values.yaml
+helm install orders https://github.com/SamuelSupe/morrowsql/releases/download/v8.4.11-1/morrowsql-1.0.0.tgz \
+  -n orders-db -f production-values.yaml
 ```
 
 `production-values.yaml` 示例：
@@ -160,6 +160,8 @@ restore:
 `restore.prefix` 是完整备份目录，即备份的 `backup.prefix` 加上完成状态中的
 `status.output`。为新集群准备覆盖其 DNS 名称的 TLS 证书和管理员 Secret。
 待三个新成员上线后，核对表结构、数据以及应用约束，再接入业务。
+新集群使用安装 Secret 中的管理员凭据；上游还原默认不加载应用账号，需要另行
+重建并验证应用账号的授权，然后再接入业务流量。
 不得将该流程用于跨版本还原或外部 MySQL 数据迁入。
 
 ## 卸载与数据保留

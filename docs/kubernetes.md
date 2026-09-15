@@ -22,11 +22,11 @@ stable artifacts and become usable when the release is published.
 
 ```sh
 helm install morrowsql-operator \
-  oci://ghcr.io/samuelsupe/charts/morrowsql-operator \
-  --version 1.0.0 --namespace morrowsql-system --create-namespace
+  https://github.com/SamuelSupe/morrowsql/releases/download/v8.4.11-1/morrowsql-operator-1.0.0.tgz \
+  --namespace morrowsql-system --create-namespace
 
-helm install orders oci://ghcr.io/samuelsupe/charts/morrowsql \
-  --version 1.0.0 --namespace orders-db --create-namespace \
+helm install orders https://github.com/SamuelSupe/morrowsql/releases/download/v8.4.11-1/morrowsql-1.0.0.tgz \
+  --namespace orders-db --create-namespace \
   --values production-values.yaml
 ```
 
@@ -98,6 +98,9 @@ not evidence that a backup succeeded. Record the completed backup directory.
 Restore with a **new Helm release name**, the same MorrowSQL release, the S3
 settings, `restore.enabled: true` and `restore.prefix` pointing to that completed
 backup. Verify schema and application data before connecting an application.
+The new cluster uses the administration credentials from its installation
+Secret. The upstream restore defaults do not load application accounts; recreate
+and verify their grants before connecting application traffic.
 An installation-time restore is not a version upgrade or an import from another
 MySQL distribution. The caller is responsible for bucket retention policies.
 

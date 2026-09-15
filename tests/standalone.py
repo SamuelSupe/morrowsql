@@ -26,6 +26,8 @@ def client_file(path, user, password):
 
 def main():
     image_id = docker("image", "inspect", IMAGE, "--format", "{{.Id}}").stdout.strip()
+    binary = os.environ.get("MORROWSQL_BINARY_DIRECTORY")
+    data_directory = "/var/lib/morrowsql" if binary else "/var/lib/mysql"
     suffix = uuid.uuid4().hex[:10]
     names = [f"morrowsql-{suffix}-{role}" for role in ("source", "restore", "reject")]
     volumes = [name + "-data" for name in names]
@@ -61,6 +63,12 @@ def main():
         client_file(private / "root.cnf", "root", root_password)
         client_file(private / "app.cnf", "app", app_password)
         client_file(private / "wrong.cnf", "app", secrets.token_urlsafe(32))
+        if binary:
+            (private / "install.cnf").write_text((pathlib.Path(binary) / "my.cnf.example").read_text())
+            for path in private.glob("*.cnf"):
+                if path.name != "install.cnf":
+                    with path.open("a") as stream:
+                        stream.write("socket=/var/lib/morrowsql/mysql.sock\n")
         # The runtime mysql UID needs to read mounted files; the host directory
         # stays private and is removed when this test finishes.
         for path in private.iterdir():
@@ -69,15 +77,15 @@ def main():
         def start(name, volume):
             docker("volume", "create", "--label", "morrowsql.test=" + suffix, volume)
             created_volumes.append(volume)
-            binary = os.environ.get("MORROWSQL_BINARY_DIRECTORY")
             mounts = ["-v", f"{pathlib.Path(binary).resolve()}:/opt/morrowsql:ro"] if binary else []
+            arguments = ["mysqld", "--defaults-file=/run/secrets/install.cnf"] if binary else []
             docker("run", "-d", "--name", name, "--label", "morrowsql.test=" + suffix,
-                   "--memory=1536m", "-v", f"{volume}:/var/lib/mysql",
+                   "--memory=1536m", "-v", f"{volume}:{data_directory}",
                    "-v", f"{private}:/run/secrets:ro",
                    "-v", f"{ROOT / 'build/test-client'}:/test-client:ro",
                    "-e", "MYSQL_ROOT_PASSWORD_FILE=/run/secrets/root-password",
                    "-e", "MYSQL_PASSWORD_FILE=/run/secrets/app-password",
-                   "-e", "MYSQL_DATABASE=app_db", "-e", "MYSQL_USER=app", *mounts, image_id)
+                   "-e", "MYSQL_DATABASE=app_db", "-e", "MYSQL_USER=app", *mounts, image_id, *arguments)
             created_containers.append(name)
             ready(name)
 

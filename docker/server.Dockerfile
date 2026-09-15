@@ -24,6 +24,7 @@ COPY build/stage/opt/morrowsql/ /opt/morrowsql/
 COPY docker/entrypoint.sh /entrypoint.sh
 COPY docker/bootstrap.py /usr/local/lib/morrowsql/bootstrap.py
 COPY docker/my.cnf /etc/my.cnf
+COPY licenses/ /usr/share/morrowsql/licenses/
 RUN chmod 0755 /entrypoint.sh \
     && printf '8.4.11-1\n' > /usr/local/share/morrowsql/version
 ENV PATH=/opt/morrowsql/bin:/opt/morrowsql/sbin:$PATH

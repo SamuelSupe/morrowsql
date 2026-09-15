@@ -214,7 +214,6 @@ def main():
         # be compared against the complete set of client acknowledgements.
         from s3_backup import verify_backups
         verify_backups(acceptance)
-        acceptance.retain_volumes()
         status = "passed"
     finally:
         try:

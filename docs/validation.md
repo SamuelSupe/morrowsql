@@ -1,19 +1,21 @@
 # Release validation
 
-Status: **NOT RELEASED — validation in progress**.
+Candidate progress is recorded in [native verification](https://github.com/SamuelSupe/morrowsql/actions/workflows/build.yml).
+The authoritative report for a published version is its `validation.json`,
+`validation.md`, and architecture-specific evidence archives in
+[GitHub Releases](https://github.com/SamuelSupe/morrowsql/releases).
+No release is established by this source document alone.
 
-| Gate | amd64 | arm64 |
-| --- | --- | --- |
-| Native source build and dependencies | Not run | In progress |
-| Applicable unit tests and MTR suites | Not run | Not run |
-| Fresh standalone startup, TLS, authentication, transactions | Not run | Not run |
-| Restart, crash recovery, same-release backup and restore | Not run | Not run |
-| Three-member Kubernetes cluster and two routers | Not run | Not run |
-| Primary/process/pod/node failure and partition handling | Not run | Not run |
-| Operator/router recovery, maintenance, PVC retention | Not run | Not run |
-| S3 backup failure, success and fresh same-release restore | Not run | Not run |
-| Licenses, SBOM, vulnerabilities, source rebuild, attestations | Not run | Not run |
-| Anonymous downloads and fresh installation | Not run | Not run |
+| Gate, on both native architectures | Evidence |
+| --- | --- |
+| Build Server, Router and Shell from the corresponding source archive | Native workflow logs and build attestations |
+| Applicable unit tests and four MTR suites | `upstream/unit.xml`, `upstream/mtr.xml`, MTR logs and skip reasons |
+| Fresh standalone and Ubuntu archive, TLS, authentication, prepared statements, transactions | Two `standalone-*/results.json` files |
+| Restart, crash recovery and same-release backup/restore | Standalone scenario results |
+| Three members, two Routers, faults, partitions, maintenance, PVC retention | `morrowsql-*/results.json` and cluster diagnostics |
+| S3 failure, one-time and scheduled backup, fresh same-release restore | HA scenarios and MySQLBackup status |
+| Runtime dependencies, corresponding sources, SPDX, vulnerabilities | `audit/`, source lock files and [security review](security-review.md) |
+| Anonymous downloads, pulls, tags and fresh standalone/Kubernetes installation | [Publication workflow](https://github.com/SamuelSupe/morrowsql/actions/workflows/publish.yml) public-install jobs |
 
 Helm lint and rendering are static checks; they are not cluster runtime evidence.
 The local OrbStack cluster has one arm64 node. The release HA gate uses isolated

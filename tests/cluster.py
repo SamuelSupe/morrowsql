@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import subprocess
+import tempfile
 import time
 import uuid
 
@@ -34,6 +35,7 @@ class Cluster:
         self.environment = dict(os.environ, KUBECONFIG=str(self.evidence / "kubeconfig"))
         self.created = False
         self.secrets = []
+        self.charts = pathlib.Path(os.environ.get("MORROWSQL_CHART_DIRECTORY", ROOT / "charts"))
 
     def redact(self, text):
         for value in self.secrets:
@@ -74,6 +76,9 @@ class Cluster:
         nodes = self.get("nodes")["items"]
         assert len(nodes) == 4
         assert all(n["status"]["nodeInfo"]["kubeletVersion"].startswith("v1.35.") for n in nodes)
+        for node in nodes:
+            memory = "2g" if node["metadata"]["name"].endswith("control-plane") else "3g"
+            self.run("docker", "update", "--memory", memory, "--memory-swap", memory, node["metadata"]["name"])
         for local, target in IMAGES.items():
             self.run("docker", "tag", local, target)
         images = json.loads(self.run("docker", "image", "inspect", *IMAGES.values()).stdout)
@@ -82,7 +87,7 @@ class Cluster:
         self.run("kind", "load", "docker-image", "--name", self.name, *IMAGES.values())
 
     def install_operator(self):
-        result = self.run("helm", "install", "morrowsql-operator", str(ROOT / "charts/morrowsql-operator"),
+        result = self.run("helm", "install", "morrowsql-operator", str(self.charts / "morrowsql-operator"),
                          "--namespace", "morrowsql-system", "--create-namespace", "--wait", "--timeout", "5m")
         (self.evidence / "operator-install.log").write_text(result.stdout + result.stderr)
 
@@ -90,11 +95,19 @@ class Cluster:
         tag = reference.split("@")[0]
         self.run("docker", "pull", reference)
         self.run("docker", "tag", reference, tag)
-        self.run("kind", "load", "docker-image", "--name", self.name, tag)
+        architecture = self.run("docker", "image", "inspect", tag, "--format", "{{.Architecture}}").stdout.strip()
+        # Docker's containerd store can retain a multi-platform index after a
+        # native pull. Export only the available platform, so kind does not
+        # attempt to import absent manifests for other architectures.
+        with tempfile.TemporaryDirectory(prefix="morrowsql-image-") as directory:
+            archive = str(pathlib.Path(directory) / "image.tar")
+            self.run("docker", "image", "save", "--platform", "linux/" + architecture,
+                     "--output", archive, tag)
+            self.run("kind", "load", "image-archive", "--name", self.name, archive)
         return tag
 
     def install_database(self, name="morrow", extra=None):
-        args = ["helm", "install", name, str(ROOT / "charts/morrowsql"), "-f", str(ROOT / "tests/ci-values.yaml")]
+        args = ["helm", "install", name, str(self.charts / "morrowsql"), "-f", str(ROOT / "tests/ci-values.yaml")]
         if extra:
             path = self.evidence / f"{name}-values.json"
             path.write_text(json.dumps(extra))
