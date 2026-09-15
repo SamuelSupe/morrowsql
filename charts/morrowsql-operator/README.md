@@ -1,61 +1,33 @@
-# MySQL Operator for Kubernetes
+# MorrowSQL Operator Chart
 
-## Introduction
+Chart version: **1.0.0**. Controller: **MySQL Operator 8.4.9-2.1.11**, built
+from commit `da256206a7ed5d2dd4082a6bfd6de8a64b3b6c6e` with MySQL Shell 8.4.9.
+The upstream CRDs, RBAC and controller logic are preserved. Distribution changes
+set the MorrowSQL image repository and chart identity.
 
-The MySQL Operator for Kubernetes is an operator for managing MySQL InnoDB Cluster setups inside a Kubernetes Cluster.
-It manages the full lifecycle with set up and maintenance that includes automating upgrades and backup.
-
-MySQL Operator for Kubernetes is brought to you by the MySQL team at Oracle.
-
-## Issues and Pull Requests
-
-As with all MySQL projects, issues (including bugs and feature requests) are tracked here:
-
-  * https://bugs.mysql.com/
-
-Pull requests submitted via github are also tracked at bugs.mysql.com; see [CONTRIBUTING](CONTRIBUTING.md) for related information.
-
-## License
-
-Copyright (c) 2020, 2024, Oracle and/or its affiliates.
-
-License information can be found in the [LICENSE](https://github.com/mysql/mysql-operator/blob/trunk/LICENSE) file.
-This distribution may include materials developed by third parties. For license
-and attribution notices for these materials, please refer to the `LICENSE` file.
-
-## Pre-requisites
-* Kubernetes 1.21+
-* Helm v3
-
-## MySQL Operator for Kubernetes Installation with Helm
-
-Install the Helm repository:
+Install this chart once per cluster in a dedicated namespace, before installing
+`morrowsql`. It owns cluster-wide MySQL CRDs and watches InnoDBCluster resources.
+Do not install alongside another MySQL Operator managing these same resources.
 
 ```sh
-$> helm repo add mysql-operator https://mysql.github.io/mysql-operator/
-$> helm repo update
+helm install morrowsql-operator ./charts/morrowsql-operator \
+  --namespace morrowsql-system --create-namespace
 ```
 
-Then deploy the operator:
+The default controller image is:
+`ghcr.io/samuelsupe/morrowsql/8.4.11-1/community-operator:8.4.9-2.1.11`.
 
-```sh
-$> helm install mysql-operator mysql-operator/mysql-operator --namespace mysql-operator --create-namespace
-```
+For private registry mirrors, set `image.registry`, `image.repository`, and
+`envs.imagesDefaultRegistry` / `envs.imagesDefaultRepository` consistently. Set
+`image.pullSecrets.enabled=true` and `image.pullSecrets.secretName` for an
+existing registry Secret. Never pass database passwords in Helm values.
 
-This deploys the latest MySQL Operator for Kubernetes from DockerHub using all defaults; although the deployment
-can be customized through a variety of options to override built-in defaults. See the documentation for details.
+See [Kubernetes deployment](../../docs/kubernetes.md) for the separate database
+chart, production TLS, storage, S3 backups, recovery and PVC retention.
 
-## More Information
+## 中文
 
-Refer to the official documentation at:
-
-  * https://dev.mysql.com/doc/mysql-operator/en/
-
-For additional downloads and the source code, visit:
-
-  * https://dev.mysql.com/downloads
-  * https://github.com/mysql/mysql-operator
-
-Contributing to MySQL Operator for Kubernetes, see:
-
-  * See [CONTRIBUTING](CONTRIBUTING.md)
+先在独立命名空间安装本 Chart，再安装数据库 Chart。控制器沿用官方
+MySQL Operator 8.4.9-2.1.11 的逻辑，使用本发行版自建镜像。
+本 Chart 注册集群级 CRD 和 RBAC，避免与其他管理相同资源的 MySQL Operator
+同时安装。数据库密码及 S3 凭据通过已有 Secret 引用。

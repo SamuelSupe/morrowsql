@@ -1,10 +1,25 @@
-name: Native candidate build
+name: Native release verification
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Verify all upstream inputs and create the corresponding source archive
+        run: |
+          python3 scripts/fetch-sources.py
+          python3 scripts/package.py source
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: corresponding-source
+          path: dist/
+          retention-days: 3
   build:
+    needs: source
     strategy:
       fail-fast: false
       matrix:
@@ -15,28 +30,64 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 350
+    defaults:
+      run:
+        working-directory: .work/morrowsql-8.4.11-1-source
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: Prepare disposable runner
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: corresponding-source
+          path: input
+      - name: Prepare the disposable native runner from the source archive
+        working-directory: .
         run: |
           sudo rm -rf /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          cd input
+          sha256sum --check morrowsql-8.4.11-1-source.tar.gz.sha256
+          mkdir ../.work
+          tar -xzf morrowsql-8.4.11-1-source.tar.gz -C ../.work
+          mkdir -p ../.work/morrowsql-8.4.11-1-source/artifacts
           df -h .
-          mkdir -p artifacts
-      - name: Build native sources and images
+      - name: Build native Server, Router, Shell and Operator from corresponding sources
         env:
           BUILD_JOBS: "3"
           BUILD_CPUS: "4"
           BUILD_MEMORY: 12g
           BUILD_RUN_ID: ${{ github.run_id }}
         run: bash scripts/build.sh all 2>&1 | tee artifacts/build.log
-      - name: Export candidate images
+      - name: Validate chart rendering and shell syntax
+        run: |
+          python3 scripts/install-test-tools.py
+          export PATH="$PWD/.cache/bin:$PATH"
+          bash scripts/check.sh
+      - name: Standalone image behavior
+        run: bash scripts/test-standalone.sh
+      - name: Package and freshly install the native Ubuntu archive
+        run: |
+          python3 scripts/package.py binary --arch ${{ matrix.arch }}
+          bash scripts/test-package.sh dist/morrowsql-8.4.11-1-linux-${{ matrix.arch }}.tar.gz
+      - name: Upstream unit tests and main, innodb, rpl, group_replication MTR suites
+        env:
+          TEST_JOBS: "3"
+          TEST_CPUS: "4"
+          TEST_MEMORY: 10g
+          BUILD_RUN_ID: ${{ github.run_id }}
+        run: bash scripts/test-upstream.sh
+      - name: Kubernetes 1.35 HA, fault recovery, S3 backup and same-release restore
+        run: bash scripts/test-ha.sh
+      - name: Dependency resolution, SPDX SBOM and vulnerability gate
+        run: bash scripts/audit-artifacts.sh
+      - name: Export the exact verified images
         run: |
           docker save morrowsql:8.4.11-1 morrowsql-router:8.4.11-1 morrowsql-operator:8.4.11-1 | zstd -T2 -3 > artifacts/images-${{ matrix.arch }}.tar.zst
-          tar -I 'zstd -T2 -3' -cf artifacts/build-${{ matrix.arch }}.tar.zst build/stage build/build-packages.tsv
-      - name: Preserve candidate evidence
+          cp BUILDINFO.json artifacts/build-info.json
+      - name: Preserve candidate artifacts and evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: candidate-${{ matrix.arch }}
-          path: artifacts/
-          retention-days: 1
+          path: |
+            .work/morrowsql-8.4.11-1-source/artifacts/
+            .work/morrowsql-8.4.11-1-source/dist/
+          retention-days: 3

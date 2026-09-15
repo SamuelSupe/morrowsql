@@ -35,7 +35,9 @@ fi
 
 if [[ -f "$datadir/.morrowsql-initialized" ]]; then
   [[ -d "$datadir/mysql" ]] || fail 'initialized data directory is incomplete'
+  [[ $(cat "$datadir/.morrowsql-initialized") == $(cat /usr/local/share/morrowsql/version) ]] || fail 'data directory belongs to a different MorrowSQL release'
   [[ ${MYSQL_INITIALIZE_ONLY:-0} == 1 ]] && exit 0
+  unset MYSQL_ROOT_PASSWORD MYSQL_PASSWORD
   exec "$@"
 fi
 

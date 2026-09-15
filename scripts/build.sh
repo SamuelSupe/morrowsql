@@ -2,20 +2,28 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p build dist artifacts
+component=${1:-all}
+case "$component" in server|shell|images|all) ;; *) echo 'Expected server, shell, images or all' >&2; exit 2 ;; esac
 python=${PYTHON:-python3.12}
 command -v "$python" >/dev/null || python=python3
-"$python" scripts/fetch-sources.py
 
 build_args=()
 run_args=()
+if [[ -f BUILDINFO.json ]]; then
+  revision=$("$python" -c 'import json; print(json.load(open("BUILDINFO.json"))["revision"])')
+else
+  revision=$(git rev-parse HEAD)
+fi
+build_args+=(--build-arg "REVISION=$revision")
 ca_file=${BUILD_CA_FILE:-}
 [[ -n "$ca_file" || ! -f .cache/build-ca.pem ]] || ca_file="$PWD/.cache/build-ca.pem"
 if [[ -n "$ca_file" ]]; then
+  export BUILD_CA_FILE="$ca_file"
   build_args+=(--secret "id=build_ca,src=$ca_file")
   run_args+=(-v "$ca_file:/etc/ssl/certs/ca-certificates.crt:ro")
 fi
+"$python" scripts/fetch-sources.py
 docker build "${build_args[@]}" -f docker/builder.Dockerfile -t morrowsql-builder:8.4.11-1 .
-component=${1:-all}
 if [[ "$component" == server || "$component" == all ]]; then
   docker run --rm --name "morrowsql-build-server-${BUILD_RUN_ID:-local}" \
     --memory="${BUILD_MEMORY:-6g}" --cpus="${BUILD_CPUS:-3}" \
@@ -35,4 +43,3 @@ if [[ "$component" == images || "$component" == all ]]; then
   docker build "${build_args[@]}" -f docker/router.Dockerfile -t morrowsql-router:8.4.11-1 .
   docker build "${build_args[@]}" -f docker/operator.Dockerfile -t morrowsql-operator:8.4.11-1 .
 fi
-case "$component" in server|shell|images|all) ;; *) echo 'Expected server, shell, images or all' >&2; exit 2 ;; esac

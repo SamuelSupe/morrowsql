@@ -13,7 +13,7 @@ RUN --mount=type=secret,id=build_ca,target=/run/secrets/build-ca.pem,mode=0444 \
        build-essential cmake ninja-build bison pkg-config git ca-certificates curl \
        libssl-dev libncurses-dev libtirpc-dev libaio-dev libudev-dev \
        libldap2-dev libsasl2-dev libcurl4-openssl-dev libevent-dev libssh-dev \
-       libedit-dev libkrb5-dev zlib1g-dev libzstd-dev liblz4-dev \
+       libedit-dev libkrb5-dev zlib1g-dev libzstd-dev liblz4-dev uuid-dev \
        python3-dev python3-venv python3-pip perl libjson-perl libnuma-dev \
        patchelf rsync file jq xz-utils zstd \
     && dpkg-query -W > /build-packages.tsv \

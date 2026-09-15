@@ -18,6 +18,20 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def fetch(url, archive, expected):
+    if not archive.exists():
+        partial = archive.with_suffix(".partial")
+        print(f"Fetching {archive.name}", flush=True)
+        context = ssl.create_default_context(cafile=os.environ.get("BUILD_CA_FILE"))
+        with urllib.request.urlopen(url, context=context, timeout=120) as response, partial.open("wb") as output:
+            shutil.copyfileobj(response, output)
+        if digest(partial) != expected:
+            raise SystemExit(f"Archive checksum mismatch: {archive.name}")
+        partial.replace(archive)
+    if digest(archive) != expected:
+        raise SystemExit(f"Cached archive checksum mismatch: {archive.name}")
+
+
 def main():
     release = json.loads((ROOT / "release.json").read_text())
     archives = ROOT / ".cache/archives"
@@ -27,19 +41,8 @@ def main():
     for name, source in release["sources"].items():
         expected = source["sha256"]
         archive = archives / f'{name}-{source["commit"]}.tar.gz'
-        if not archive.exists():
-            url = f'https://codeload.github.com/{source["repository"]}/tar.gz/{source["commit"]}'
-            partial = archive.with_suffix(".partial")
-            print(f"Fetching {name}", flush=True)
-            ca = os.environ.get("BUILD_CA_FILE")
-            context = ssl.create_default_context(cafile=ca)
-            with urllib.request.urlopen(url, context=context, timeout=120) as response, partial.open("wb") as output:
-                shutil.copyfileobj(response, output)
-            if digest(partial) != expected:
-                raise SystemExit(f"Archive checksum mismatch: {name}")
-            partial.replace(archive)
-        if digest(archive) != expected:
-            raise SystemExit(f"Cached archive checksum mismatch: {name}")
+        url = f'https://codeload.github.com/{source["repository"]}/tar.gz/{source["commit"]}'
+        fetch(url, archive, expected)
         target = sources / name
         marker = target / ".morrowsql-source"
         if marker.exists() and marker.read_text().strip() == source["commit"]:
@@ -56,6 +59,10 @@ def main():
             shutil.move(str(entries[0]), target)
         marker.write_text(source["commit"] + "\n")
         print(f"Verified {name}: {source['commit']}", flush=True)
+    python_sources = ROOT / ".cache/python-sources"
+    python_sources.mkdir(exist_ok=True)
+    for source in json.loads((ROOT / "python-sources.json").read_text()):
+        fetch(source["url"], python_sources / source["filename"], source["sha256"])
 
 
 if __name__ == "__main__":

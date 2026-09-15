@@ -1,4 +1,5 @@
 FROM ubuntu:24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+ARG REVISION=development
 ENV DEBIAN_FRONTEND=noninteractive
 ADD --checksum=sha256:641de77d8f142cfd62a1a6f964ba67b20754d3337c480efb529d086075a06c9a https://snapshot.ubuntu.com/ubuntu/20260914T000000Z/pool/main/c/ca-certificates/ca-certificates_20240203_all.deb /tmp/ca-certificates.deb
 RUN dpkg-deb -x /tmp/ca-certificates.deb /tmp/ca-bootstrap \
@@ -28,6 +29,7 @@ RUN chmod 0755 /entrypoint.sh \
 ENV PATH=/opt/morrowsql/bin:/opt/morrowsql/sbin:$PATH
 LABEL org.opencontainers.image.title="MorrowSQL" \
       org.opencontainers.image.version="8.4.11-1" \
+      org.opencontainers.image.revision=$REVISION \
       org.opencontainers.image.source="https://github.com/SamuelSupe/morrowsql"
 EXPOSE 3306 33060 33061
 STOPSIGNAL SIGTERM

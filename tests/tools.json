@@ -1,0 +1,54 @@
+{
+  "kind-darwin-amd64": {
+    "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-darwin-amd64",
+    "sha256": "5a99f26f57246dc9319dd294803313197a0f34d33c525b3ea8b655db5916ece0"
+  },
+  "kind-darwin-arm64": {
+    "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-darwin-arm64",
+    "sha256": "0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f"
+  },
+  "kind-linux-amd64": {
+    "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-amd64",
+    "sha256": "aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d"
+  },
+  "kind-linux-arm64": {
+    "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.33.0/kind-linux-arm64",
+    "sha256": "20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2"
+  },
+  "kubectl-darwin-amd64": {
+    "url": "https://dl.k8s.io/release/v1.35.8/bin/darwin/amd64/kubectl",
+    "sha256": "35c964c16432ea65eda6600d6ff4fea040d5eafcb6ad410297ba67d49b618148"
+  },
+  "helm-darwin-amd64": {
+    "url": "https://get.helm.sh/helm-v4.2.0-darwin-amd64.tar.gz",
+    "sha256": "1376ea697140e4db316736e760d5a47d12afc1524dce704476ef06fd7fdeddc6",
+    "member": "darwin-amd64/helm"
+  },
+  "kubectl-darwin-arm64": {
+    "url": "https://dl.k8s.io/release/v1.35.8/bin/darwin/arm64/kubectl",
+    "sha256": "b8be50ae0c6665b646fb009f904a52cad30806deee19ab3b4fe5af2d68bd82eb"
+  },
+  "helm-darwin-arm64": {
+    "url": "https://get.helm.sh/helm-v4.2.0-darwin-arm64.tar.gz",
+    "sha256": "f13f959015447b6bc309f9fd506509926543988a39035c088b52522ec95e2acb",
+    "member": "darwin-arm64/helm"
+  },
+  "kubectl-linux-amd64": {
+    "url": "https://dl.k8s.io/release/v1.35.8/bin/linux/amd64/kubectl",
+    "sha256": "874d5e72dbb819f43cff16bcd1e4f8bac5b7f2361fe1e55049b0a6c676fb0cbf"
+  },
+  "helm-linux-amd64": {
+    "url": "https://get.helm.sh/helm-v4.2.0-linux-amd64.tar.gz",
+    "sha256": "97dbeb971be4ac4b27e3839976d9564c0fb35c6f3b1da89dd1e292d236af4096",
+    "member": "linux-amd64/helm"
+  },
+  "kubectl-linux-arm64": {
+    "url": "https://dl.k8s.io/release/v1.35.8/bin/linux/arm64/kubectl",
+    "sha256": "cc749967b62f4422260bc9c0aa7a7c55f45175ae38cb8d95767b5d2b7e04c1fd"
+  },
+  "helm-linux-arm64": {
+    "url": "https://get.helm.sh/helm-v4.2.0-linux-arm64.tar.gz",
+    "sha256": "1f8de130dfbd04de64978e7b852a7a547be1404956a366608276d2520b678670",
+    "member": "linux-arm64/helm"
+  }
+}

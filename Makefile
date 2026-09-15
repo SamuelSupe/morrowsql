@@ -1,5 +1,5 @@
 .PHONY: sources build images check package
-PYTHON ?= python3
+PYTHON ?= python3.12
 
 sources:
 	$(PYTHON) scripts/fetch-sources.py
@@ -14,4 +14,5 @@ check:
 	bash scripts/check.sh
 
 package:
-	$(PYTHON) scripts/package.py
+	$(PYTHON) scripts/package.py binary --arch $(ARCH)
+	$(PYTHON) scripts/package.py source

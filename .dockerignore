@@ -5,3 +5,4 @@ dist
 build/*
 !build/stage/
 !build/operator-code/
+build/stage/opt/morrowsql/mysql-test/
