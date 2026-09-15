@@ -59,6 +59,7 @@ jobs:
           mkdir ../.work
           tar -xzf morrowsql-8.4.11-1-source.tar.gz -C ../.work
           mkdir -p ../.work/morrowsql-8.4.11-1-source/artifacts
+          python3 ../.work/morrowsql-8.4.11-1-source/scripts/fetch-sources.py
           df -h .
       - name: Restore native compiler outputs for unchanged source inputs
         id: compiler-cache
