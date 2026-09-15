@@ -1,0 +1,115 @@
+{{- if gt (len .Release.Name) 28 }}
+{{- fail "release name must be at most 28 characters" }}
+{{- end }}
+apiVersion: mysql.oracle.com/v2
+kind: InnoDBCluster
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/part-of: morrowsql
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+spec:
+  version: "8.4.11"
+  edition: community
+  imageRepository: {{ .Values.imageRepository | quote }}
+  imagePullPolicy: IfNotPresent
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets: {{ toYaml . | nindent 4 }}
+  {{- end }}
+  instances: 3
+  secretName: {{ required "credentials.existingSecret is required" .Values.credentials.existingSecret | quote }}
+  tlsUseSelfSigned: {{ .Values.tls.selfSigned }}
+  {{- if not .Values.tls.selfSigned }}
+  tlsCASecretName: {{ required "tls.caSecret is required for production TLS" .Values.tls.caSecret | quote }}
+  tlsSecretName: {{ required "tls.serverSecret is required for production TLS" .Values.tls.serverSecret | quote }}
+  {{- end }}
+  router:
+    version: "8.4.11"
+    instances: 2
+    {{- if not .Values.tls.selfSigned }}
+    tlsSecretName: {{ required "tls.routerSecret is required for production TLS" .Values.tls.routerSecret | quote }}
+    {{- end }}
+    podSpec:
+      containers:
+        - name: router
+          resources: {{ toYaml .Values.routerResources | nindent 12 }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  mysql.oracle.com/cluster: {{ .Release.Name }}
+                  component: mysqlrouter
+              topologyKey: kubernetes.io/hostname
+  service:
+    type: ClusterIP
+  datadirVolumeClaimTemplate:
+    accessModes: [ReadWriteOnce]
+    {{- with .Values.storage.className }}
+    storageClassName: {{ . | quote }}
+    {{- end }}
+    resources:
+      requests:
+        storage: {{ .Values.storage.size | quote }}
+  podSpec:
+    terminationGracePeriodSeconds: 120
+    containers:
+      - name: mysql
+        resources: {{ toYaml .Values.resources | nindent 10 }}
+    {{- with .Values.nodeSelector }}
+    nodeSelector: {{ toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+    tolerations: {{ toYaml . | nindent 6 }}
+    {{- end }}
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                mysql.oracle.com/cluster: {{ .Release.Name }}
+                component: mysqld
+            topologyKey: kubernetes.io/hostname
+  {{- if .Values.mycnf }}
+  mycnf: |
+    [mysqld]
+    {{- .Values.mycnf | nindent 4 }}
+  {{- end }}
+  {{- if .Values.backup.enabled }}
+  backupProfiles:
+    - name: s3
+      dumpInstance:
+        dumpOptions:
+          threads: 2
+        storage:
+          s3:
+            bucketName: {{ required "backup.bucket is required" .Values.backup.bucket | quote }}
+            config: {{ required "backup.existingSecret is required" .Values.backup.existingSecret | quote }}
+            prefix: {{ required "backup.prefix is required" .Values.backup.prefix | quote }}
+            profile: {{ .Values.backup.profile | quote }}
+            {{- with .Values.backup.endpoint }}
+            endpoint: {{ . | quote }}
+            {{- end }}
+  {{- with .Values.backup.schedule }}
+  backupSchedules:
+    - name: scheduled
+      schedule: {{ . | quote }}
+      backupProfileName: s3
+      enabled: true
+      deleteBackupData: false
+  {{- end }}
+  {{- end }}
+  {{- if .Values.restore.enabled }}
+  initDB:
+    dump:
+      name: same-version-restore
+      storage:
+        s3:
+          bucketName: {{ required "backup.bucket is required for restore" .Values.backup.bucket | quote }}
+          config: {{ required "backup.existingSecret is required for restore" .Values.backup.existingSecret | quote }}
+          prefix: {{ required "restore.prefix must identify a completed backup" .Values.restore.prefix | quote }}
+          profile: {{ .Values.backup.profile | quote }}
+          {{- with .Values.backup.endpoint }}
+          endpoint: {{ . | quote }}
+          {{- end }}
+  {{- end }}

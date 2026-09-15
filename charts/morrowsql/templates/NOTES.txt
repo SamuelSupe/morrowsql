@@ -1,0 +1,8 @@
+Wait for three online MorrowSQL members:
+  kubectl -n {{ .Release.Namespace }} get innodbcluster {{ .Release.Name }} -w
+
+Use the Router service {{ .Release.Name }}.{{ .Release.Namespace }}.svc.cluster.local.
+The cluster is a single-primary database. Clients must reconnect after failover.
+
+Uninstalling the release retains database PVCs. Delete PVCs only when you intend
+to permanently remove their data. This chart supports fresh installation only.

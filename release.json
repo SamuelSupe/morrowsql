@@ -1,0 +1,39 @@
+{
+  "name": "MorrowSQL",
+  "version": "8.4.11-1",
+  "chartVersion": "1.0.0",
+  "repository": "SamuelSupe/morrowsql",
+  "registry": "ghcr.io/samuelsupe",
+  "sources": {
+    "server": {
+      "repository": "mysql/mysql-server",
+      "tag": "mysql-8.4.11",
+      "commit": "99960bf74fa919347e4f4e3ca47672f333d6e91f",
+      "sha256": "2dfb2a5e001cb27c4c3b97a85cb05793a0610958ada666209cd4e69b6328041f"
+    },
+    "shell": {
+      "repository": "mysql/mysql-shell",
+      "tag": "8.4.9",
+      "commit": "43fb6f5a02d42634732d5f96982ee09f21796d5e",
+      "sha256": "98784613070aa6dc54ce159cfb5c89b7107ce81dff1e20686839698f950eb5ae"
+    },
+    "operator": {
+      "repository": "mysql/mysql-operator",
+      "tag": "8.4.9-2.1.11",
+      "commit": "da256206a7ed5d2dd4082a6bfd6de8a64b3b6c6e",
+      "sha256": "004fa933a72f5adf84411a04d25061ac53bf9ac2a7529a0fef0b3a7fdf9960c9"
+    },
+    "antlr": {
+      "repository": "antlr/antlr4",
+      "tag": "4.10.1",
+      "commit": "fc1ecf676c30a1cd131c04a51f08b71923e3a362",
+      "sha256": "44f04f22c92c279bcbd8ce1006533cf906cfb1b305fb0ff84a34b1a02682ed59"
+    }
+  },
+  "platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "operatingSystem": "ubuntu:24.04",
+  "kubernetesMinor": "1.35"
+}

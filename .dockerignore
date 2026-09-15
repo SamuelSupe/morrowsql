@@ -1,0 +1,7 @@
+.git
+.cache
+artifacts
+dist
+build/*
+!build/stage/
+!build/operator-code/

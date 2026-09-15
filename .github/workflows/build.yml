@@ -1,0 +1,42 @@
+name: Native candidate build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Prepare disposable runner
+        run: |
+          sudo rm -rf /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h .
+          mkdir -p artifacts
+      - name: Build native sources and images
+        env:
+          BUILD_JOBS: "3"
+          BUILD_CPUS: "4"
+          BUILD_MEMORY: 12g
+          BUILD_RUN_ID: ${{ github.run_id }}
+        run: bash scripts/build.sh all 2>&1 | tee artifacts/build.log
+      - name: Export candidate images
+        run: |
+          docker save morrowsql:8.4.11-1 morrowsql-router:8.4.11-1 morrowsql-operator:8.4.11-1 | zstd -T2 -3 > artifacts/images-${{ matrix.arch }}.tar.zst
+          tar -I 'zstd -T2 -3' -cf artifacts/build-${{ matrix.arch }}.tar.zst build/stage build/build-packages.tsv
+      - name: Preserve candidate evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: candidate-${{ matrix.arch }}
+          path: artifacts/
+          retention-days: 1

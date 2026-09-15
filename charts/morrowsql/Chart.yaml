@@ -1,0 +1,10 @@
+apiVersion: v2
+name: morrowsql
+description: A fresh MorrowSQL InnoDB Cluster with three members and two routers
+type: application
+version: 1.0.0
+appVersion: 8.4.11-1
+kubeVersion: ">=1.35.0-0 <1.36.0-0"
+home: https://github.com/SamuelSupe/morrowsql
+sources:
+  - https://github.com/SamuelSupe/morrowsql

@@ -1,0 +1,40 @@
+credentials:
+  existingSecret: ""
+imageRepository: ghcr.io/samuelsupe/morrowsql/8.4.11-1
+imagePullSecrets: []
+storage:
+  className: ""
+  size: 20Gi
+resources:
+  requests:
+    cpu: "1"
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+routerResources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+nodeSelector: {}
+tolerations: []
+tls:
+  selfSigned: false
+  caSecret: ""
+  serverSecret: ""
+  routerSecret: ""
+backup:
+  enabled: false
+  bucket: ""
+  endpoint: ""
+  prefix: ""
+  existingSecret: ""
+  profile: default
+  schedule: ""
+restore:
+  enabled: false
+  prefix: ""
+mycnf: ""

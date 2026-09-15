@@ -1,0 +1,16 @@
+credentials:
+  existingSecret: morrowsql-credentials
+tls:
+  selfSigned: true
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1536Mi
+storage:
+  size: 2Gi
+mycnf: |
+  innodb_buffer_pool_size=134217728
+  max_connections=100
